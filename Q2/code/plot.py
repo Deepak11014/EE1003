@@ -3,56 +3,60 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Load the shared library (adjust path to the correct location)
-lib = ctypes.CDLL('./output.so')  # Replace with './func.dll' on Windows
+lib = ctypes.CDLL('./main.so')  # Replace with the correct path to your .so file
 
 # Define argument and return types for the C functions
-lib.solution.argtypes = [ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.c_int]
-lib.solution.restype = None
+lib.trapezoidal_mod_cos.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_int]
+lib.trapezoidal_mod_cos.restype = ctypes.c_double
 
 # Set the initial values and parameters
-x = ctypes.c_float(0.0)  # Initial value of x
-area = ctypes.c_float(0.0)  # Initial value of the area
-n = int(2 * np.pi / 0.001)  # Number of iterations based on step size h
+x1 = 0.0  # Start of interval
+x2 = 2 * np.pi  # End of interval
+n = int(2 * np.pi / 0.00001)  # Number of intervals based on the step size
 
-# Create arrays to store the results for plotting
-x_vals = []
-cos_vals = []
-intersections_x = []  # List to store x-coordinates of intersections
-intersections_y = []  # List to store y-coordinates (all zeros for intersections)
+# Arrays to store results for plotting
+x_vals = np.linspace(x1, x2, n)
+cos_vals = np.cos(x_vals)
+mod_cos_vals = np.abs(cos_vals)  # Take the absolute value of cos(x)
 
-# Run the solution function and store results for plotting
-h = 0.0001  # Step size
-for i in range(n + 1):
-    # Append current values to the lists
-    x_vals.append(x.value)
-    cos_val = np.cos(x.value)
-    cos_vals.append(cos_val)
-    
-    # Check for intersections (y = 0)
-    if i > 0 and cos_vals[i - 1] * cos_val < 0:  # Sign change indicates intersection
-        intersections_x.append(x.value)
-        intersections_y.append(0)
-    
-    # Call the C solution function
-    lib.solution(ctypes.byref(x), ctypes.byref(area), 1)
+# Detect intersections of cos(x) with the x-axis (where cos(x) = 0)
+intersections_cos_x = []
+intersections_cos_y = []  # All intersections have y = 0
 
-# Plot the graph and fill the area under the curve
+
+# Find intersections for cos(x)
+for i in range(1, n):
+    if cos_vals[i - 1] * cos_vals[i] < 0:  # Sign change indicates intersection
+        intersections_cos_x.append(x_vals[i])
+        intersections_cos_y.append(0)
+
+
+
+# Plot the graph of cos(x)
 plt.figure(figsize=(12, 8))
 plt.plot(x_vals, cos_vals, label="cos(x)", color='b', linewidth=2)
 plt.fill_between(x_vals, cos_vals, color='blue', alpha=0.3, label="Area under cos(x)")
-plt.xlim([0, 2 * np.pi])
-plt.ylim([-1.1, 1.1])
-plt.xlabel("x-axis")
-plt.ylabel("cos(x)")
-plt.axhline(0, color='black', linewidth=1)  # x-axis
 
-# Plot and label the points of intersection
-for x_int in intersections_x:
+
+# Plot and label the points of intersection for cos(x)
+for x_int in intersections_cos_x:
     plt.scatter(x_int, 0, color='red', zorder=5)  # Plot the point
-    plt.text(x_int, 0.1, f"({x_int:.2f}, 0)", color='blue', fontsize=10, ha='center')  # Label the point
+    plt.text(x_int, 0.05, f"({x_int:.2f}, 0)", color='blue', fontsize=10, ha='center')  # Label the point
 
-# Add legends, grid
+# Plot settings
+plt.xlim([0, 2 * np.pi])
+plt.ylim([-1.1, 1.1])  # For cos(x)
+plt.xlabel("x-axis")
+plt.ylabel("cos(x) / |cos(x)|")
+plt.axhline(0, color='black', linewidth=1)  # x-axis
 plt.legend()
 plt.grid(True)
+
+# Show the plot
 plt.show()
+
+# Call the C function to calculate the area under |cos(x)|
+area = lib.trapezoidal_mod_cos(x1, x2, n)
+print(f"The area under |cos(x)| from 0 to 2π is: {area:.5f}")
+
 
